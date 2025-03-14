@@ -5,7 +5,7 @@ from v1.routers.places import router as places_router
 
 app = FastAPI(
     title="Quratr API",
-    description="API for Quratr",
+    description="API for Quratr AI",
 )
 
 # origins = [
