@@ -4,11 +4,9 @@ import openai
 from dotenv import load_dotenv
 import sys
 
-# Add parent directory to path to allow importing from helpers
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from helpers.places import (
     RecommendationResponse, 
-    load_place_data, format_place_data,
+    load_place_data,
     format_places_for_response
 )
 load_dotenv()
