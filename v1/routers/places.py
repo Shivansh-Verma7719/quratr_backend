@@ -34,7 +34,23 @@ async def recommend_places(
     """Get place recommendations based on mood, vibe and location"""
     try:
         # Format the place data for the assistant
-        # place_info = format_place_data(df)
+        place_info = format_place_data(df)
+
+        assistant = openai.beta.assistants.create(
+        name="Mood-Based Place Recommender",
+        instructions=f"""
+        You are an AI travel assistant that suggests the best places based on user mood and preferences.
+        Here is the place database:
+        {place_info}
+        Given a user's mood, vibe, and location, provide recommendations based on the following criteria:
+        - Prioritize highly-rated places.
+        - Consider mood, tags, and location.
+        - Include images and addresses.
+        Give at least 10 recommendations for each query, no less.
+        If no relevant place is found, suggest exploring the web.
+        """,
+        model="gpt-4o-mini",
+    )
         
         # Using a fixed assistant ID (assumed pre-created with your data context)
         assistant_id = "asst_LijyJeIVBHNEv61HzTe3hwHn"

@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 # from fastapi.middleware.cors import CORSMiddleware
 from v1.routers.places import router as places_router
+from v1.routers.langplaces import router as langplaces_router
 
 
 app = FastAPI(
@@ -22,6 +23,11 @@ app = FastAPI(
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {
+        "name": "Quratr Agentic API",
+        "about": "Quratr is an AI-powered platform designed to provide intelligent solutions for various applications.",
+        "version": "0.1.0",
+    }
 
 app.include_router(places_router, prefix="/v1")
+app.include_router(langplaces_router, prefix="/v1/lang")
