@@ -6,7 +6,6 @@ from typing import Optional
 from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 from langchain_core.runnables import RunnablePassthrough
 
 from ..helpers.places import (
@@ -29,9 +28,6 @@ def get_llm(provider: str = "openai", model_name: Optional[str] = None):
     if provider.lower() == "openai":
         model = model_name or "gpt-4-turbo"
         return ChatOpenAI(model=model, temperature=0.7)
-    elif provider.lower() == "anthropic":
-        model = model_name or "claude-3-sonnet-20240229"
-        return ChatAnthropic(model=model)
     else:
         raise ValueError(f"Unsupported provider: {provider}")
 
