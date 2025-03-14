@@ -2,11 +2,10 @@ from fastapi import APIRouter, Query, HTTPException, Depends
 import os
 import openai
 from dotenv import load_dotenv
-import sys
 
-from helpers.places import (
+from ..helpers.places import (
     RecommendationResponse, 
-    load_place_data,
+    load_place_data, format_place_data,
     format_places_for_response
 )
 load_dotenv()
