@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 # from fastapi.middleware.cors import CORSMiddleware
 from v1.routers.places import router as places_router
-from v1.routers.langplaces import router as langplaces_router
-
 
 app = FastAPI(
     title="Quratr API",
@@ -30,4 +28,3 @@ def read_root():
     }
 
 app.include_router(places_router, prefix="/v1")
-app.include_router(langplaces_router, prefix="/v1/lang")
