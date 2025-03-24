@@ -8,7 +8,11 @@ app = FastAPI(
 )
 
 origins = [
-    "**",
+    "*",  # Allow requests from any origin
+    "http://localhost:3000",  # Explicitly allow local development server
+    "http://localhost:3001",
+    "https://quratr.com",
+    "https://www.quratr.com",
 ]
 
 app.add_middleware(
