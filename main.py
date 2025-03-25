@@ -8,7 +8,6 @@ app = FastAPI(
 )
 
 origins = [
-    "*",  # Allow requests from any origin
     "http://localhost:3000",  # Explicitly allow local development server
     "http://localhost:3001",
     "https://quratr.com",
@@ -28,7 +27,7 @@ def read_root():
     return {
         "name": "Quratr Agentic API",
         "about": "Quratr is an AI-powered platform designed to provide intelligent solutions for various applications.",
-        "version": "0.1.0",
+        "version": "0.5.0",
     }
 
 app.include_router(places_router, prefix="/v1")

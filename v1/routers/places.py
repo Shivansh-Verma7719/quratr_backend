@@ -84,7 +84,7 @@ class SearchResponse(BaseModel):
 async def search_places(
     query: str = Query(..., description="Natural language query to search for places"),
     limit: int = Query(15, description="Maximum number of results to return"),
-    threshold: float = Query(0.5, description="Similarity threshold (0-1)"),
+    threshold: float = Query(0.45, description="Similarity threshold (0-1)"),
     format: str = Query("json", description="Response format (json, markdown, html, plain)"),
     debug: bool = Query(False, description="Show detailed debugging information")
 ):

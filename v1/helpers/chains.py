@@ -113,6 +113,7 @@ Guidelines:
 3. For each place, explain specifically why it matches the user's query
 4. Include 3-5 highlight points for each place
 5. The summary should be concise (2-3 sentences)
+6. IMPORTANT: A rating of -1 indicates a newly opened place. Mentioning it's a "New" or "Recently opened" place in the description or highlights when applicable.
 
 CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any other formatting.
     """
@@ -219,6 +220,32 @@ def format_places_for_llm(places: List[Dict], results: List[SearchResult]) -> Li
         pid = place.get("id")
         cuisine = ", ".join(place.get("cuisine", [])) if place.get("cuisine") else ""
         tags = ", ".join(place.get("tags", [])) if place.get("tags") else ""
+        
+        # Process rating - convert to float, -1 for "New", or None if invalid
+        rating_value = place.get("rating")
+        if rating_value is not None:
+            try:
+                if isinstance(rating_value, str) and rating_value.lower() == "new":
+                    # Use -1 as a special value to represent "New" places
+                    rating = -1.0
+                else:
+                    rating = float(rating_value) if rating_value != "" else None
+            except (ValueError, TypeError):
+                # Handle other non-numeric strings
+                rating = None
+        else:
+            rating = None
+            
+        # Process price - convert to float or None if not a valid number
+        price_value = place.get("price")
+        if price_value is not None:
+            try:
+                price = float(price_value) if price_value != "" else None
+            except (ValueError, TypeError):
+                price = None
+        else:
+            price = None
+            
         ranking_info = {}
         if pid in score_map:
             res = score_map[pid]
@@ -227,6 +254,7 @@ def format_places_for_llm(places: List[Dict], results: List[SearchResult]) -> Li
                 "relevance_score": round(res.reranking_score, 3),
                 "final_score": round(res.final_score, 3)
             }
+            
         formatted_place = {
             "id": pid,
             "name": place.get("name", ""),
@@ -234,12 +262,13 @@ def format_places_for_llm(places: List[Dict], results: List[SearchResult]) -> Li
             "city": place.get("city", ""),
             "cuisine": cuisine,
             "tags": tags,
-            "rating": place.get("rating", ""),
-            "price": place.get("price", ""),
+            "rating": rating,
+            "price": price,
             "description": place.get("description", ""),
             "image": place.get("image", ""),
             "ranking": ranking_info
         }
         formatted_places.append(formatted_place)
+        
     formatted_places.sort(key=lambda x: x.get("ranking", {}).get("final_score", 0), reverse=True)
     return formatted_places
