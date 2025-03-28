@@ -12,7 +12,6 @@ from langchain_openai import ChatOpenAI
 from ..helpers.chains import (
     create_query_understanding_chain,
     create_response_chain,
-    rerank_by_ordering,
     format_places_for_llm
 )
 from ..helpers.helpers import (
@@ -44,8 +43,6 @@ def get_llm():
 # Define response models
 class PlaceRanking(BaseModel):
     similarity_score: float
-    relevance_score: float
-    final_score: float
 
 class PlaceResponse(BaseModel):
     id: int
@@ -127,13 +124,10 @@ async def search_places(
         if not place_details:
             raise HTTPException(status_code=404, detail="Could not retrieve place details")
             
-        # Step 4: Rerank Results
-        reranked_results = rerank_by_ordering(results, place_details, intent, llm, debug=debug)
+        # Step 4: Format Places for Response (using vector similarity only)
+        formatted_places = format_places_for_llm(place_details, results)
         
-        # Step 5: Format Places for Response
-        formatted_places = format_places_for_llm(place_details, reranked_results)
-        
-        # Step 6: Generate Enhanced Response
+        # Step 5: Generate Enhanced Response
         response_chain = create_response_chain(llm)
         places_json = json.dumps(formatted_places, indent=2)
         user_input = f"""

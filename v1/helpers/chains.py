@@ -163,56 +163,9 @@ CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any o
     chain = prompt | llm 
     return lambda inputs: ensure_json_response(chain.invoke(inputs))
 
-def rerank_by_ordering(results: List[SearchResult], places: list, intent: QueryIntent, llm: ChatOpenAI, debug: bool = False) -> List[SearchResult]:
-    """
-    Rerank results using an ordering-based approach:
-      - Compile a summary of each place.
-      - Provide query analysis.
-      - Ask the LLM for a comma-separated list of place IDs in descending order.
-      - Parse the output and assign scores (trimmed to 3 decimals).
-    """
-    # Build a summary for each place.
-    place_map = {place["id"]: place for place in places}
-    details_list = []
-    for result in results:
-        if result.id in place_map:
-            place = place_map[result.id]
-            cuisine = ", ".join(place.get("cuisine", [])) if place.get("cuisine") else "Unknown"
-            details = f"ID: {place.get('id')}, Name: {place.get('name','')}, Cuisine: {cuisine}, Price: {place.get('price','')}, Rating: {place.get('rating','')}, Location: {place.get('address','')} {place.get('city','')}"
-            details_list.append(details)
-    combined_details = "\n".join(details_list)
-    query_analysis = (
-        f"User Query: \"{intent.original_query}\"\n"
-        f"Cuisine Preferences: {', '.join(intent.cuisine_types) if intent.cuisine_types else 'Any'}\n"
-        f"Locations: {', '.join(intent.locations) if intent.locations else 'Any'}\n"
-        f"Price Range: {intent.price_range if intent.price_range else 'Any'}\n"
-        f"Atmosphere: {intent.atmosphere if intent.atmosphere else 'Any'}\n"
-    )
-    user_input = f"{query_analysis}\nPlace Details:\n{combined_details}\n\nOutput a comma-separated list of place IDs in descending order of relevance (most relevant first)."
-    ordering_chain = create_ordering_chain(llm)
-    raw_ordering_output = ordering_chain.invoke({"user_input": user_input})
-    if not isinstance(raw_ordering_output, str):
-        raw_ordering_output = str(raw_ordering_output)
-    cleaned_output = clean_ordering_output(raw_ordering_output)
-    if debug:
-        print("Ordering chain raw output:", raw_ordering_output)
-        print("Cleaned ordering output:", cleaned_output)
-    id_list = re.findall(r'\d+', cleaned_output)
-    id_list = [int(x) for x in id_list]
-    if debug:
-        print("Parsed ordering:", id_list)
-    n = len(id_list)
-    ranking_dict = {pid: round((n - rank + 1) / n * 10, 3) for rank, pid in enumerate(id_list, start=1)}
-    for result in results:
-        if result.id in ranking_dict:
-            result.reranking_score = ranking_dict[result.id]
-            result.final_score = round((result.similarity * 0.4) + ((result.reranking_score / 10) * 0.6), 3)
-    results.sort(key=lambda x: x.final_score, reverse=True)
-    return results
-
 def format_places_for_llm(places: List[Dict], results: List[SearchResult]) -> List[Dict]:
     """
-    Prepare place data for the LLM response. Relevance scores are trimmed to 3 decimals.
+    Prepare place data for the LLM response using only similarity scores.
     """
     score_map = {result.id: result for result in results}
     formatted_places = []
@@ -250,9 +203,7 @@ def format_places_for_llm(places: List[Dict], results: List[SearchResult]) -> Li
         if pid in score_map:
             res = score_map[pid]
             ranking_info = {
-                "similarity_score": round(res.similarity, 3),
-                "relevance_score": round(res.reranking_score, 3),
-                "final_score": round(res.final_score, 3)
+                "similarity_score": round(res.similarity, 3)
             }
             
         formatted_place = {
@@ -270,5 +221,6 @@ def format_places_for_llm(places: List[Dict], results: List[SearchResult]) -> Li
         }
         formatted_places.append(formatted_place)
         
-    formatted_places.sort(key=lambda x: x.get("ranking", {}).get("final_score", 0), reverse=True)
+    # Sort by similarity score
+    formatted_places.sort(key=lambda x: x.get("ranking", {}).get("similarity_score", 0), reverse=True)
     return formatted_places
