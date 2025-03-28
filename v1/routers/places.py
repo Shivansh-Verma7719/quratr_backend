@@ -7,6 +7,7 @@ import re
 from dotenv import load_dotenv
 from supabase import create_client
 from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Import helpers from v1/helpers
 from ..helpers.chains import (
@@ -28,6 +29,7 @@ load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -39,6 +41,19 @@ def get_llm():
         temperature=0.3,
         api_key=OPENAI_API_KEY
     )
+
+# def get_llm():
+#     return ChatOpenAI(
+#         model="o3-mini",
+#         api_key=OPENAI_API_KEY
+#     )
+
+# def get_llm():
+#     return ChatGoogleGenerativeAI(
+#         model="gemini-2.0-flash",
+#         temperature=0.4,
+#         api_key=GOOGLE_API_KEY
+#     )        
 
 # Define response models
 class PlaceRanking(BaseModel):

@@ -97,7 +97,7 @@ IMPORTANT: You must return your response in valid JSON format with the following
       "match_reasons": ["Why this place matches the query", "Another reason"],
       "highlights": ["Special feature 1", "Special feature 2"],
       "cuisine": "Type of cuisine",
-      "price_range": "$$$",
+      "price_range": "₹xxx",
       "location": "Area/neighborhood",
       "atmosphere": "Description of atmosphere",
       "image_url": "URL of the image"
@@ -114,6 +114,9 @@ Guidelines:
 4. Include 3-5 highlight points for each place
 5. The summary should be concise (2-3 sentences)
 6. IMPORTANT: A rating of -1 indicates a newly opened place. Mentioning it's a "New" or "Recently opened" place in the description or highlights when applicable.
+7. IMPORTANT: Only include ONE location from each chain restaurant (like Starbucks, McDonald's, KFC, Subway, etc.)
+8. IMPORTANT: Only suggest chain restaurants if no other suitable options are available or if available options don't match the query well.
+9. Prioritize local, unique establishments over chain restaurants when possible.
 
 CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any other formatting.
     """
