@@ -30,27 +30,49 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY") 
 
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Initialize OpenAI client
+
+# openrouter.ai deepseek-chat-v3-0324 model - free version
+# def get_llm():
+#     return ChatOpenAI(
+#         model="deepseek/deepseek-chat-v3-0324:free",
+#         base_url="https://openrouter.ai/api/v1",
+#         temperature=0.3,
+#         api_key=OPENROUTER_API_KEY
+#     )
+
+# 4o-mini model - default
 def get_llm():
     return ChatOpenAI(
         model="gpt-4o-mini",
-        temperature=0.3,
-        api_key=OPENAI_API_KEY
+        api_key=OPENAI_API_KEY,
+        temperature=0.4,
     )
 
+# o3-mini model
 # def get_llm():
 #     return ChatOpenAI(
 #         model="o3-mini",
-#         api_key=OPENAI_API_KEY
+#         api_key=OPENAI_API_KEY,
 #     )
 
+# Google Gemini model 2.0 flash
 # def get_llm():
 #     return ChatGoogleGenerativeAI(
 #         model="gemini-2.0-flash",
+#         temperature=0.4,
+#         api_key=GOOGLE_API_KEY
+#     )
+
+# Google Gemini model - pro version
+# def get_llm():
+#     return ChatGoogleGenerativeAI(
+#         model="gemini-2.5-pro-exp-03-25",
 #         temperature=0.4,
 #         api_key=GOOGLE_API_KEY
 #     )        
@@ -98,7 +120,6 @@ async def search_places(
     limit: int = Query(15, description="Maximum number of results to return"),
     threshold: float = Query(0.45, description="Similarity threshold (0-1)"),
     format: str = Query("json", description="Response format (json, markdown, html, plain)"),
-    debug: bool = Query(False, description="Show detailed debugging information")
 ):
     """
     Search for places using natural language processing.
@@ -116,6 +137,7 @@ async def search_places(
         # Step 1: Understand the query
         query_chain = create_query_understanding_chain(llm)
         intent_dict = query_chain({"query": query})
+        print(f"Intent Dictionary: {intent_dict}")  # Debugging line
         
         # Convert to QueryIntent object
         intent = QueryIntent(
