@@ -82,7 +82,7 @@ class PlaceRanking(BaseModel):
 # Add this to your existing models
 class SearchRequest(BaseModel):
     query: str
-    limit: int = 15
+    limit: int = 30
     threshold: float = 0.45
     user_attributes: List[int] = [0, 0, 0, 0, 0]
     
@@ -90,7 +90,7 @@ class SearchRequest(BaseModel):
         schema_extra = {
             "example": {
                 "query": "Suggest some good coffee places in South Delhi",
-                "limit": 15,
+                "limit": 30,
                 "threshold": 0.45,
                 "user_attributes": [1, 1, 0, 0, 0]
             }
