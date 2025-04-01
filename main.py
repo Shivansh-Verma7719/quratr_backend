@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from v1.routers.places import router as places_router
+from fastapi.responses import FileResponse
+
 
 app = FastAPI(
     title="Quratr API",
@@ -29,5 +31,11 @@ def read_root():
         "about": "Quratr is an AI-powered platform designed to provide intelligent solutions for various applications.",
         "version": "0.5.0",
     }
+
+favicon_path = 'favicon.ico'
+
+@app.get('/favicon.ico', include_in_schema=False)
+async def favicon():
+    return FileResponse(favicon_path)
 
 app.include_router(places_router, prefix="/v1")

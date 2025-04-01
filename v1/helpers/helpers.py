@@ -19,6 +19,7 @@ class QueryIntent(BaseModel):
     occasion: Optional[str] = None
     dietary_preferences: List[str] = Field(default_factory=list)
     expanded_queries: List[str] = Field(default_factory=list)
+    user_attributes: Dict[str, bool] = Field(default_factory=dict)  # Added user attributes
 
 @dataclass
 class SearchResult:
@@ -86,45 +87,83 @@ def vector_search(supabase, query_embedding: List[float], threshold: float = 0.5
         print(f"Error in vector search: {e}")
         return []
 
+def vector_search_multiple(supabase, query_embeddings: List[List[float]], threshold: float = 0.5, limit: int = 30) -> List[Dict]:
+    """
+    Perform vector search in Supabase using the optimized RPC function that accepts multiple embeddings.
+    """
+    try:
+        # Format each embedding as a PostgreSQL vector string
+        # PostgreSQL expects vectors in the format: '[0.1,0.2,0.3,...]'
+        formatted_embeddings = []
+        for embedding in query_embeddings:
+            # Convert each embedding to a string in PostgreSQL vector format
+            vector_str = f"[{','.join(str(val) for val in embedding)}]"
+            formatted_embeddings.append(vector_str)
+        
+        print(f"Sending {len(formatted_embeddings)} embeddings to match_places_multiple...")
+        
+        response = supabase.rpc(
+            'match_places_multiple',
+            {
+                'query_embeddings': formatted_embeddings,
+                'match_threshold': threshold,
+                'match_count': limit
+            }
+        ).execute()
+        
+        # Return the data or empty list
+        return response.data if response.data else []
+    except Exception as e:
+        print(f"Error in vector search: {e}")
+        # Print a sample of the data to help debug
+        if formatted_embeddings and len(formatted_embeddings) > 0:
+            print(f"First formatted embedding sample (first 30 chars): {formatted_embeddings[0][:30]}...")
+        return []
+
 def multi_query_retrieval(intent: QueryIntent, supabase, threshold: float, limit: int) -> List[SearchResult]:
     """
-    Retrieve results using multiple query variations.
+    Retrieve results using multiple query variations in a single optimized database call.
     """
-    all_results = {}
-    
     # Ensure expanded_queries is a list, not None
     expanded_queries = intent.expanded_queries if intent.expanded_queries else []
     
     # Combine original query with expanded queries
     queries_to_try = [intent.original_query] + expanded_queries
     
+    # Filter out empty queries
+    queries_to_try = [q for q in queries_to_try if q and q.strip()]
+    
     print(f"Retrieving results using {len(queries_to_try)} query variations...")
     
+    # Generate embeddings for all queries first
+    all_embeddings = []
     for query_text in queries_to_try:
-        # Skip empty queries
-        if not query_text or not query_text.strip():
-            continue
-            
         print(f"Processing query variation: '{query_text}'")
         query_embedding = generate_query_embedding(query_text)
-        results = vector_search(supabase, query_embedding, threshold, limit)
-        print(f"  → Found {len(results)} results")
-        
-        # Process results...
-        for result in results:
-            rid = result["id"]
-            if rid not in all_results:
-                # Add new results to our collection (first time seeing this place)
-                all_results[rid] = SearchResult(
-                    id=rid,
-                    name=extract_name_from_content(result["content"]),
-                    content=result["content"],
-                    similarity=result["similarity"]
-                )
-            else:
-                # If we already have this result, keep only the highest similarity score
-                all_results[rid].similarity = max(all_results[rid].similarity, result["similarity"])
-                
+        all_embeddings.append(query_embedding)
+    
+    # Single database call with all embeddings
+    results = vector_search_multiple(supabase, all_embeddings, threshold, limit)
+    
+    print(f"Found {len(results)} total results")
+    
+    # Process and deduplicate results
+    all_results = {}
+    for result in results:
+        rid = result["id"]
+        if rid not in all_results:
+            # Add new results to our collection (first time seeing this place)
+            all_results[rid] = SearchResult(
+                id=rid,
+                name=extract_name_from_content(result["content"]),
+                content=result["content"],
+                similarity=result["similarity"]
+            )
+        else:
+            # If we already have this result, keep only the highest similarity score
+            all_results[rid].similarity = max(all_results[rid].similarity, result["similarity"])
+    
+    # Sort by similarity score and return top results
     results_list = list(all_results.values())
     results_list.sort(key=lambda x: x.similarity, reverse=True)
     return results_list[:limit]
@@ -138,143 +177,3 @@ def get_place_details(supabase, results: List[SearchResult]) -> List[Dict]:
     place_ids = [result.id for result in results]
     details = supabase.table("placesv2").select("*").in_("id", place_ids).execute()
     return details.data if details.data else []
-
-def format_response_as_markdown(response_text):
-    """
-    Format the response as clean markdown, ensuring proper formatting.
-    
-    Args:
-        response_text: The response from the LLM (can be string or dict)
-        
-    Returns:
-        Properly formatted markdown response
-    """
-    # Handle dict responses (common with newer LLM output formats)
-    if isinstance(response_text, dict):
-        # Try common keys for the content
-        if 'text' in response_text:
-            content = response_text['text']
-        elif 'content' in response_text:
-            content = response_text['content']
-        elif 'answer' in response_text:
-            content = response_text['answer']
-        else:
-            # If we can't find a standard text field, convert the whole dict to string
-            content = str(response_text)
-    else:
-        # If it's already a string, use it directly
-        content = str(response_text)
-    
-    # Clean up markdown formatting and handle literal newlines
-    clean_text = content.replace("```markdown", "").replace("```", "")
-    # Replace literal \n with actual newlines
-    clean_text = clean_text.replace("\\n", "\n")
-    
-    # Make the formatting cleaner and more consistent
-    lines = clean_text.split('\n')
-    formatted_lines = []
-    
-    inside_list = False
-    for line in lines:
-        line = line.strip()
-        if not line:
-            # Keep empty lines
-            formatted_lines.append("")
-            continue
-            
-        # Handle numbered lists
-        if re.match(r'^\d+\.\s', line):
-            inside_list = True
-            formatted_lines.append(line)
-            
-        # Handle bold headings (often used instead of proper headings)
-        elif line.startswith("**") and line.endswith("**") and "**  " in line:
-            heading_text = line.replace("**", "").strip()
-            formatted_lines.append(f"### {heading_text}")
-            
-        # Handle proper headings
-        elif line.startswith("#"):
-            inside_list = False
-            # Don't change existing ### headings
-            if line.startswith("### "):
-                formatted_lines.append(line)
-            # Convert other headings to standardized ### format
-            else:
-                text = re.sub(r'^#+\s*', '', line)
-                if text:  # Only add if there's actual content
-                    formatted_lines.append(f"### {text}")
-                    
-        # Handle image links
-        elif line.startswith("!["):
-            inside_list = False
-            formatted_lines.append(line)
-            
-        # Normal text
-        else:
-            formatted_lines.append(line)
-    
-    # Join lines back together
-    markdown = "\n\n".join([line for line in formatted_lines if line is not None])
-    
-    # Fix image formatting
-    markdown = re.sub(r'\n{2,}(!\[)', '\n\n![', markdown)
-    
-    return markdown
-
-def json_to_markdown(json_data):
-    """
-    Convert a structured JSON recommendation response to markdown format.
-    """
-    # Get recommendations and summary
-    recommendations = json_data.get("recommendations", [])
-    summary = json_data.get("summary", "")
-    
-    if not recommendations:
-        return "No recommendations found."
-    
-    # Start with the summary
-    markdown = f"{summary}\n\n"
-    
-    # Add each recommendation
-    for i, place in enumerate(recommendations):
-        # Place name as heading
-        markdown += f"### {place.get('name')}\n"
-        
-        # Add image if available
-        if place.get('image_url'):
-            markdown += f"![{place.get('name')}]({place.get('image_url')})\n\n"
-        
-        # Add description
-        markdown += f"{place.get('description', '')}\n\n"
-        
-        # Add key details as bullet points
-        markdown += "**Key Details:**\n"
-        if place.get('cuisine'):
-            markdown += f"- **Cuisine:** {place.get('cuisine')}\n"
-        if place.get('location'):
-            markdown += f"- **Location:** {place.get('location')}\n"
-        if place.get('price_range'):
-            markdown += f"- **Price Range:** {place.get('price_range')}\n"
-        if place.get('atmosphere'):
-            markdown += f"- **Atmosphere:** {place.get('atmosphere')}\n"
-        markdown += "\n"
-        
-        # Add why this matches the user's query
-        if place.get('match_reasons'):
-            markdown += "**Why This Matches Your Search:**\n"
-            for reason in place.get('match_reasons'):
-                markdown += f"- {reason}\n"
-            markdown += "\n"
-        
-        # Add highlights
-        if place.get('highlights'):
-            markdown += "**Highlights:**\n"
-            for highlight in place.get('highlights'):
-                markdown += f"- {highlight}\n"
-            markdown += "\n"
-        
-        # Add separator between places except for the last one
-        if i < len(recommendations) - 1:
-            markdown += "---\n\n"
-    
-    return markdown

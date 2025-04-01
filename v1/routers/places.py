@@ -3,11 +3,10 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 import os
 import json
-import re
 from dotenv import load_dotenv
 from supabase import create_client
 from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
+# from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Import helpers from v1/helpers
 from ..helpers.chains import (
@@ -16,7 +15,6 @@ from ..helpers.chains import (
     format_places_for_llm
 )
 from ..helpers.helpers import (
-    json_to_markdown,
     multi_query_retrieval,
     get_place_details,
     QueryIntent,
@@ -81,6 +79,23 @@ def get_llm():
 class PlaceRanking(BaseModel):
     similarity_score: float
 
+# Add this to your existing models
+class SearchRequest(BaseModel):
+    query: str
+    limit: int = 15
+    threshold: float = 0.45
+    user_attributes: List[int] = [0, 0, 0, 0, 0]
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query": "Suggest some good coffee places in South Delhi",
+                "limit": 15,
+                "threshold": 0.45,
+                "user_attributes": [1, 1, 0, 0, 0]
+            }
+        }
+
 class PlaceResponse(BaseModel):
     id: int
     name: str
@@ -112,47 +127,65 @@ class SearchResponse(BaseModel):
     places: List[PlaceResponse]
     recommendations: List[RecommendationItem]
     summary: str
-    markdown_response: Optional[str] = None
 
-@router.get("/search", response_model=SearchResponse)
-async def search_places(
-    query: str = Query(..., description="Natural language query to search for places"),
-    limit: int = Query(15, description="Maximum number of results to return"),
-    threshold: float = Query(0.45, description="Similarity threshold (0-1)"),
-    format: str = Query("json", description="Response format (json, markdown, html, plain)"),
-):
+@router.post("/search", response_model=SearchResponse)
+async def search_places(request: SearchRequest):
     """
-    Search for places using natural language processing.
+    Search for places using natural language processing with personalization.
     
     This endpoint:
     1. Analyzes the query intent
-    2. Performs vector search using multiple query variations
+    2. Performs vector search using multiple query variations  
     3. Retrieves place details
-    4. Ranks results based on relevance
-    5. Generates a detailed response
+    4. Generates a detailed personalized response
     """
     try:
         llm = get_llm()
         
+        # Process user attributes from request
+        user_profile = {}
+        try:
+            attribute_values = request.user_attributes
+            if len(attribute_values) == 5:
+                attribute_names = [
+                    "Nightlife Enthusiast", 
+                    "Luxury-Seeking", 
+                    "Solitary", 
+                    "Adventurous", 
+                    "Social"
+                ]
+                user_profile = {
+                    name: bool(value) 
+                    for name, value in zip(attribute_names, attribute_values)
+                }
+        except Exception as e:
+            # Handle invalid input gracefully
+            print(f"Invalid user_attributes format: {request.user_attributes}")
+            # Continue with empty user profile
+        
         # Step 1: Understand the query
         query_chain = create_query_understanding_chain(llm)
-        intent_dict = query_chain({"query": query})
+        intent_dict = query_chain({"query": request.query})
         print(f"Intent Dictionary: {intent_dict}")  # Debugging line
+        
+        # Add user attributes to intent dictionary
+        intent_dict["user_attributes"] = user_profile
         
         # Convert to QueryIntent object
         intent = QueryIntent(
-            original_query=intent_dict.get("original_query", query),
+            original_query=intent_dict.get("original_query", request.query),
             cuisine_types=intent_dict.get("cuisine_types", []),
             locations=intent_dict.get("locations", []),
             price_range=intent_dict.get("price_range"),
             atmosphere=intent_dict.get("atmosphere"),
             occasion=intent_dict.get("occasion"),
             dietary_preferences=intent_dict.get("dietary_preferences", []),
-            expanded_queries=intent_dict.get("expanded_queries", [])
+            expanded_queries=intent_dict.get("expanded_queries", []),
+            user_attributes=user_profile
         )
         
         # Step 2: Multi-Query Retrieval
-        results = multi_query_retrieval(intent, supabase, threshold, limit)
+        results = multi_query_retrieval(intent, supabase, request.threshold, request.limit)
         if not results:
             raise HTTPException(status_code=404, detail="No matching places found")
             
@@ -167,8 +200,15 @@ async def search_places(
         # Step 5: Generate Enhanced Response
         response_chain = create_response_chain(llm)
         places_json = json.dumps(formatted_places, indent=2)
+        
+        # Format user preferences for the prompt
+        user_preferences = []
+        for attr, value in intent.user_attributes.items():
+            if value:
+                user_preferences.append(attr)
+        
         user_input = f"""
-User Query: "{query}"
+User Query: "{request.query}"
 
 Based on our analysis, the user is looking for:
 - Cuisine Types: {', '.join(intent.cuisine_types) if intent.cuisine_types else 'Any'}
@@ -178,42 +218,52 @@ Based on our analysis, the user is looking for:
 - Occasion: {intent.occasion if intent.occasion else 'Not specified'}
 - Dietary Preferences: {', '.join(intent.dietary_preferences) if intent.dietary_preferences else 'None'}
 
+User Profile: {', '.join(user_preferences) if user_preferences else 'No specific preferences'}
+
 Places data:
 {places_json}
 
-Provide personalized recommendations based solely on this data.
-        """
+Provide personalized recommendations based on this data. Consider both the user's query and their profile preferences.
+Focus only on generating id, name, description, match_reasons, highlights, and atmosphere for each place.
+"""
         # Get the JSON response
         response_data = response_chain({"user_input": user_input})
         
-        # Optional: Convert to markdown if requested
-        markdown_response = None
-        if format.lower() in ["markdown", "html", "plain"]:
-            # Generate markdown from the JSON response
-            markdown_response = json_to_markdown(response_data)
-            
-            # Convert to HTML if requested
-            if format.lower() == "html":
-                import markdown2
-                markdown_response = markdown2.markdown(
-                    markdown_response,
-                    extras=["tables", "fenced-code-blocks"]
-                )
-            elif format.lower() == "plain":
-                # Strip markdown formatting for plain text
-                plain_response = re.sub(r'!\[.*?\]\(.*?\)', '', markdown_response)  # Remove images
-                plain_response = re.sub(r'#{1,6}\s*(.*)', r'\1', plain_response)    # Remove headings
-                plain_response = re.sub(r'\*\*(.*?)\*\*', r'\1', plain_response)    # Remove bold
-                markdown_response = plain_response
+        # Create a place lookup dictionary to easily find detailed data
+        place_lookup = {place["id"]: place for place in formatted_places}
         
-        # Prepare the API response with structured data
+        # Merge AI-generated content with existing place data
+        enriched_recommendations = []
+        
+        for rec in response_data.get("recommendations", []):
+            place_id = rec.get("id")
+            
+            # Get existing place data if available
+            place_data = place_lookup.get(place_id, {})
+            
+            # Create enriched recommendation with both AI-generated and existing data
+            enriched_rec = {
+                "id": place_id,
+                "name": rec.get("name", place_data.get("name", "")),
+                "description": rec.get("description", ""),
+                "match_reasons": rec.get("match_reasons", []),
+                "highlights": rec.get("highlights", []),
+                "atmosphere": rec.get("atmosphere", ""),
+                "cuisine": place_data.get("cuisine", ""),
+                "price_range": f"₹{int(place_data.get('price'))}" if place_data.get('price') else "",
+                "location": place_data.get("address", ""),
+                "image_url": place_data.get("image", "")
+            }
+            
+            enriched_recommendations.append(enriched_rec)
+        
+        # Prepare the final API response with structured data
         return SearchResponse(
-            query=query,
+            query=request.query,
             intent=intent_dict,
             places=formatted_places,
-            recommendations=response_data.get("recommendations", []),
-            summary=response_data.get("summary", ""),
-            markdown_response=markdown_response
+            recommendations=enriched_recommendations,
+            summary=response_data.get("summary", "")
         )
         
     except Exception as e:

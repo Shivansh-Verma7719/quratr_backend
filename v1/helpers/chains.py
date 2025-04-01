@@ -83,6 +83,7 @@ Do not include any extra text.
 def create_response_chain(llm: ChatOpenAI) -> LLMChain:
     """
     Create a chain to generate a detailed, personalized recommendation response in JSON format.
+    Only generates AI attributes (description, match_reasons, highlights, atmosphere) to improve performance.
     """
     system_template = """
 You are a sophisticated travel and dining assistant that provides personalized recommendations.
@@ -96,30 +97,38 @@ IMPORTANT: You must return your response in valid JSON format with the following
       "description": "Brief engaging description of the place",
       "match_reasons": ["Why this place matches the query", "Another reason"],
       "highlights": ["Special feature 1", "Special feature 2"],
-      "cuisine": "Type of cuisine",
-      "price_range": "₹xxx",
-      "location": "Area/neighborhood",
-      "atmosphere": "Description of atmosphere",
-      "image_url": "URL of the image"
+      "atmosphere": "Description of atmosphere"
     }},
      more places...
   ],
   "summary": "Brief overall summary of the recommendations"
 }}
 
-Guidelines:
-1. Only include places from the provided data
-2. Order places by relevance to the query
-3. For each place, explain specifically why it matches the user's query
-4. Include 3-5 highlight points for each place
-5. The summary should be concise (2-3 sentences)
-6. IMPORTANT: A rating of -1 indicates a newly opened place. Mentioning it's a "New" or "Recently opened" place in the description or highlights when applicable.
-7. IMPORTANT: Only include ONE location from each chain restaurant (like Starbucks, McDonald's, KFC, Subway, etc.)
-8. IMPORTANT: Only suggest chain restaurants if no other suitable options are available or if available options don't match the query well.
-9. Prioritize local, unique establishments over chain restaurants when possible.
+Recommendation Guidelines:
+1. ALWAYS include at least 5 places from the provided data if not more, even if they only partially match the user's query
+2. The user's query is the PRIMARY filter - user profile attributes are SECONDARY preferences
+3. User attributes should influence the ranking and explanation of places, but should NOT exclude places
+4. Start with places that best match the query, then prioritize those that ALSO align with user attributes
+5. Include 3-5 highlight points for each place that emphasize aspects relevant to the query and user preferences
+6. The summary should be concise (2-3 sentences) and mention key themes in the recommendations
+
+User Attribute Considerations (these enhance but don't limit recommendations):
+- "Nightlife Enthusiast": Mention evening/night atmosphere features when present
+- "Luxury-Seeking": Highlight premium features for higher-priced establishments
+- "Solitary": Point out aspects good for solo dining when applicable
+- "Adventurous": Emphasize unique and exotic elements when present
+- "Social": Note features good for groups when applicable
+
+Other Important Notes:
+- Rating of -1 indicates a newly opened place - mention this as "New" or "Recently opened" when applicable
+- Include only ONE location from each chain restaurant (Starbucks, McDonald's, KFC, etc.)
+- Prioritize local, unique establishments over chains when available
+- If a place doesn't perfectly match attributes but matches the query well, include it anyway
 
 CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any other formatting.
-    """
+"""
+    # Rest of the function remains unchanged
+    
     human_template = "{user_input}"
     prompt = ChatPromptTemplate.from_messages([
         SystemMessagePromptTemplate.from_template(system_template),
