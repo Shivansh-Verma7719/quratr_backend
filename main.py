@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from v1.routers.places import router as places_router
 from fastapi.responses import FileResponse
+from v1.routers.auth.verify import router as auth_router
 
 
 app = FastAPI(
@@ -29,7 +30,7 @@ def read_root():
     return {
         "name": "Quratr Agentic API",
         "about": "Quratr is an AI-powered platform designed to provide intelligent solutions for various applications.",
-        "version": "0.5.0",
+        "version": "1.0",
     }
 
 favicon_path = 'favicon.ico'
@@ -39,3 +40,4 @@ async def favicon():
     return FileResponse(favicon_path)
 
 app.include_router(places_router, prefix="/v1")
+app.include_router(auth_router, prefix="/v1/auth")
