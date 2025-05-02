@@ -166,7 +166,7 @@ async def search_places(request: SearchRequest):
         # Step 1: Understand the query
         query_chain = create_query_understanding_chain(llm)
         intent_dict = query_chain({"query": request.query})
-        print(f"Intent Dictionary: {intent_dict}")  # Debugging line
+        # print(f"Intent Dictionary: {intent_dict}")  # Debugging line
         
         # Add user attributes to intent dictionary
         intent_dict["user_attributes"] = user_profile

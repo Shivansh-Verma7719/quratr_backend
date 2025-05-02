@@ -2,7 +2,7 @@ import re
 from langchain.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
 from langchain.chains import LLMChain
 from langchain_openai import ChatOpenAI
-from .helpers import QueryIntent, clean_ordering_output, SearchResult
+from .helpers import SearchResult
 from typing import List, Dict
 import json
 

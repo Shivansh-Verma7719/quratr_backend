@@ -18,7 +18,7 @@ class QueryIntent(BaseModel):
     occasion: Optional[str] = None
     dietary_preferences: List[str] = Field(default_factory=list)
     expanded_queries: List[str] = Field(default_factory=list)
-    user_attributes: Dict[str, bool] = Field(default_factory=dict)  # Added user attributes
+    user_attributes: Dict[str, bool] = Field(default_factory=dict)
 
 @dataclass
 class SearchResult:
@@ -142,7 +142,7 @@ def multi_query_retrieval(intent: QueryIntent, supabase, threshold: float, limit
     # Single database call with all embeddings
     results = vector_search_multiple(supabase, all_embeddings, threshold, limit)
     
-    print(f"Found {len(results)} total results")
+    # print(f"Found {len(results)} total results")
     
     # Process and deduplicate results
     all_results = {}

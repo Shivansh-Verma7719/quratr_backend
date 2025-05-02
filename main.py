@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from v1.routers.places import router as places_router
 from fastapi.responses import FileResponse
 from v1.routers.auth.verify import router as auth_router
-
+import logging
 
 app = FastAPI(
     title="Quratr API",
@@ -11,11 +11,14 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost:3000",  # Explicitly allow local development server
+    "http://localhost:3000", 
     "http://localhost:3001",
     "https://quratr.com",
     "https://www.quratr.com",
 ]
+
+logger = logging.getLogger("httpx")
+logger.setLevel(logging.WARNING)
 
 app.add_middleware(
     CORSMiddleware,
