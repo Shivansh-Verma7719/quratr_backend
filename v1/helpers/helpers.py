@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from openai import OpenAI  # Changed from Google import
 from pydantic import BaseModel, Field
 
-# Load environment variables if needed
 load_dotenv()
 
 class QueryIntent(BaseModel):
@@ -92,7 +91,6 @@ def vector_search_multiple(supabase, query_embeddings: List[List[float]], thresh
     Perform vector search in Supabase using the optimized RPC function that accepts multiple embeddings.
     """
     try:
-        # Format each embedding as a PostgreSQL vector string
         # PostgreSQL expects vectors in the format: '[0.1,0.2,0.3,...]'
         formatted_embeddings = []
         for embedding in query_embeddings:
@@ -115,7 +113,6 @@ def vector_search_multiple(supabase, query_embeddings: List[List[float]], thresh
         return response.data if response.data else []
     except Exception as e:
         print(f"Error in vector search: {e}")
-        # Print a sample of the data to help debug
         if formatted_embeddings and len(formatted_embeddings) > 0:
             print(f"First formatted embedding sample (first 30 chars): {formatted_embeddings[0][:30]}...")
         return []

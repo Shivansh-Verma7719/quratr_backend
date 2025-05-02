@@ -34,7 +34,6 @@ Format the response ONLY as a valid JSON object.
         {"role": "user", "content": "Please analyze this query: \"{query}\""}
     ])
     
-    # Create a function that processes the response and ensures correct JSON parsing
     def parse_json_response(response):
         if hasattr(response, 'content'):
             content = response.content
@@ -61,7 +60,6 @@ Format the response ONLY as a valid JSON object.
     # Chain components
     chain = prompt | llm | parse_json_response
     
-    # Return a function that takes the query input and invokes the chain
     return lambda inputs: chain.invoke(inputs)
 
 def create_ordering_chain(llm: ChatOpenAI) -> LLMChain:
@@ -126,9 +124,7 @@ Other Important Notes:
 - If a place doesn't perfectly match attributes but matches the query well, include it anyway
 
 CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any other formatting.
-"""
-    # Rest of the function remains unchanged
-    
+"""    
     human_template = "{user_input}"
     prompt = ChatPromptTemplate.from_messages([
         SystemMessagePromptTemplate.from_template(system_template),
@@ -154,7 +150,6 @@ CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any o
             # Parse and validate
             response_data = json.loads(json_text)
             
-            # Ensure expected structure
             if 'recommendations' not in response_data:
                 response_data = {
                     'recommendations': response_data if isinstance(response_data, list) else [],
@@ -171,7 +166,6 @@ CRITICAL: Return ONLY valid JSON without explanation text, code blocks, or any o
                 'summary': "Could not generate structured recommendations."
             }
     
-    # Use the LangChain chain with our custom wrapper
     chain = prompt | llm 
     return lambda inputs: ensure_json_response(chain.invoke(inputs))
 
