@@ -47,9 +47,9 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 # 4o-mini model - default
 def get_llm():
     return ChatOpenAI(
-        model="gpt-4.1-nano-2025-04-14",
+        model="gpt-4o-mini-2024-07-18",
         api_key=OPENAI_API_KEY,
-        temperature=0.4,
+        temperature=0.3,
     )
 
 # o3-mini model
