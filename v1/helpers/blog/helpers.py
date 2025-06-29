@@ -15,7 +15,7 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 # Create Supabase client
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def pcm_to_mp3_bytes(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, bitrate: int = 192) -> bytes:
+def pcm_to_mp3_bytes(pcm_data: bytes, sample_rate: int = 24000, channels: int = 1, bitrate: int = 160) -> bytes:
     """Helper function to convert PCM data directly to MP3 bytes using pure Python"""
     try:
         
@@ -28,7 +28,7 @@ def pcm_to_mp3_bytes(pcm_data: bytes, sample_rate: int = 24000, channels: int = 
         encoder.set_bit_rate(bitrate)
         encoder.set_in_sample_rate(sample_rate)
         encoder.set_channels(channels)
-        encoder.set_quality(2)  # 2 is high quality, 7 is fast
+        encoder.set_quality(5)  # 2 is high quality, 7 is fast
                 
         # Encode PCM bytes directly to MP3
         mp3_data = encoder.encode(pcm_data)

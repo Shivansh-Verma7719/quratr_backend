@@ -1,9 +1,7 @@
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from typing import Optional
 from pydantic import BaseModel
 import os
-import io
 from datetime import datetime
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
