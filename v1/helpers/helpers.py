@@ -1,7 +1,7 @@
 import os
 import re
 from dotenv import load_dotenv
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Optional
 from dataclasses import dataclass
 from openai import OpenAI  # Changed from Google import
 from pydantic import BaseModel, Field
