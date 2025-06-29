@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from v1.routers.places import router as places_router
+from v1.routers.places.places import router as places_router
+from v1.routers.blog.tts import router as tts_router
 from fastapi.responses import FileResponse
 from v1.routers.auth.verify import router as auth_router
 import logging
@@ -44,3 +45,4 @@ async def favicon():
 
 app.include_router(places_router, prefix="/v1")
 app.include_router(auth_router, prefix="/v1/auth")
+app.include_router(tts_router, prefix="/v1/blog")

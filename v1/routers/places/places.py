@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 import os
@@ -9,12 +9,12 @@ from langchain_openai import ChatOpenAI
 # from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Import helpers from v1/helpers
-from ..helpers.chains import (
+from ...helpers.places.chains import (
     create_query_understanding_chain,
     create_response_chain,
     format_places_for_llm
 )
-from ..helpers.helpers import (
+from ...helpers.places.helpers import (
     multi_query_retrieval,
     get_place_details,
     QueryIntent,
